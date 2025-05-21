@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import db from "../Database/db";
+import React, { useEffect, useState } from "react";
+import db, { initDB } from "../Database/db";
 import type { Patient } from "../Interface/interface";
 import {
   Box,
@@ -23,7 +23,12 @@ const PatientForm: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const validate = () => {
+  useEffect(() => {
+    alert("hi");
+    initDB();
+  }, []);
+
+  const validate = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
@@ -31,7 +36,7 @@ const PatientForm: React.FC = () => {
     } else if (!/^[A-Za-z\s]+$/.test(formData.name.trim())) {
       // Regex allows only uppercase/lowercase letters and spaces
       newErrors.name = "Name should contain only letters and spaces";
-    }        
+    }
 
     if (!formData.age || formData.age <= 0 || formData.age > 120)
       newErrors.age = "Age must be between 1 and 120";
@@ -65,7 +70,16 @@ const PatientForm: React.FC = () => {
     // Clear error on change
     if (errors[name]) setErrors({ ...errors, [name]: "" });
   };
-
+  // Get next id by querying max id from patients table
+  async function getNextId() {
+    const result = await db.exec(`
+    SELECT MAX(id) as maxId FROM patients;
+  `);
+    console.log("Result:", result);
+    // result format depends on pglite exec, assuming rows available
+    const maxId = result[0]?.rows?.[0]?.maxid ?? 0;
+    return maxId + 1;
+  }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -73,10 +87,12 @@ const PatientForm: React.FC = () => {
 
     try {
       const { name, age, gender, address, contact, email } = formData;
+      const id = await getNextId();
 
       await db.exec(`
-        INSERT INTO patients (name, age, gender, address, contact, email, createdAt)
+        INSERT INTO patients (id,name, age, gender, address, contact, email, createdAt)
         VALUES (
+        ${id},
           '${name.replace(/'/g, "''")}', 
           ${age}, 
           '${gender}', 
@@ -94,7 +110,6 @@ const PatientForm: React.FC = () => {
       alert("Failed to register patient. Please try again.");
     }
   };
-  
 
   return (
     <Box
