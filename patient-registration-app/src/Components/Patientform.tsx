@@ -22,9 +22,9 @@ const initialFormState: Omit<Patient, "id" | "createdAt"> = {
 const PatientForm: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+//for safety
   useEffect(() => {
-    alert("hi");
+
     initDB();
   }, []);
 

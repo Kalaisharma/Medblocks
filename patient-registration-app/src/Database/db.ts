@@ -3,7 +3,6 @@ import { PGlite } from '@electric-sql/pglite';
 const db = new PGlite('idb://patient-db');
 
 export const initDB = async () => {
-  alert("Initializing database...");
   await db.exec(`
     CREATE TABLE IF NOT EXISTS patients (
       id INTEGER PRIMARY KEY,
@@ -17,5 +16,4 @@ export const initDB = async () => {
     );
   `);
 };
-initDB();
 export default db;
