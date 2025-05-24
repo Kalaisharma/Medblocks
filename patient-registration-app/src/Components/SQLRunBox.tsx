@@ -11,11 +11,12 @@ import {
   TableRow,
   Paper,
   Alert,
+  useTheme,
 } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import db from "../Database/db";
 import { useNavigate } from "react-router-dom";
 import { broadcastChange, onBroadcast } from "../Hooks/syncChannels";
-import { PGlite } from "@electric-sql/pglite";
 
 const SqlQueryRunner: React.FC = () => {
   const [query, setQuery] = useState("select * from patients");
@@ -23,6 +24,7 @@ const SqlQueryRunner: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const runQuery = async (q: string) => {
     setError(null);
@@ -39,26 +41,27 @@ const SqlQueryRunner: React.FC = () => {
         setError("Query cannot be empty");
         return;
       }
+
       const res = await db.query(q);
-      console.log(res);
       const isDDL = /^(create|drop|truncate)\s/i.test(q.trim());
 
       if (isDDL) {
         setSuccess("DDL query executed successfully");
-        broadcastChange()
+        broadcastChange();
         return;
       }
 
-      if (res.affectedRows === 0 && res.rows.length === 0) {
-        setError("No Data Found");
-        return;
-      }
       if (
         (res.affectedRows ?? 0) > 0 ||
         (res.affectedRows === undefined && res.rows.length === 0)
       ) {
         setSuccess("Query executed successfully");
         broadcastChange();
+        return;
+      }
+
+      if (res.rows.length === 0 && res.affectedRows === 0) {
+        setError("No Data Found");
         return;
       }
 
@@ -69,16 +72,10 @@ const SqlQueryRunner: React.FC = () => {
     }
   };
 
-  // Listen to broadcast channel on mount
   useEffect(() => {
-    // Setup listener for patient updates
-    onBroadcast(async () => {
-      window.location.reload();
-    });
-
-    // Optionally, run query on mount for initial data load
-      runQuery(query);
-   }, []); // empty deps - run only once on mount
+    onBroadcast(() => window.location.reload());
+    runQuery(query);
+  }, []);
 
   const handleRunQuery = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -86,106 +83,133 @@ const SqlQueryRunner: React.FC = () => {
   };
 
   return (
-    <Box component={Paper} p={3} mt={4}>
-      <Typography variant="h6" gutterBottom>
-        Run SQL Query
-      </Typography>
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <Box
+        component={Paper}
+        p={4}
+        mt={4}
+        elevation={3}
+        sx={{
+          borderRadius: 3,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <Typography variant="h5" gutterBottom fontWeight={600}>
+          SQL Query Runner
+        </Typography>
 
-      <TextField
-        label="SQL Query"
-        placeholder="SELECT * FROM patients"
-        multiline
-        fullWidth
-        rows={4}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        variant="outlined"
-        sx={{ mb: 2 }}
-      />
+        <TextField
+          label="SQL Query"
+          placeholder="SELECT * FROM patients"
+          multiline
+          fullWidth
+          rows={4}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          variant="outlined"
+          sx={{ mb: 2 }}
+        />
 
-      <Button variant="contained" onClick={(e) => { handleRunQuery(e) }}>
-        Run Query
-      </Button>
-
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error + " - Please check the SQL syntax."}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          {success}
-        </Alert>
-      )}
-
-      {result.length > 0 && (
-        <Box mt={4}>
-          <Typography variant="subtitle1" gutterBottom>
-            Query Result
-          </Typography>
-          <Box
-            sx={{
-              maxHeight: 400,
-              overflowY: "auto",
-              border: "1px solid #ccc",
-              borderRadius: 1,
+        <Box display="flex" gap={2} flexWrap="wrap">
+          <Button variant="contained" onClick={handleRunQuery}>
+            Run Query
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setQuery("");
+              setResult([]);
+              setError(null);
+              setSuccess(null);
             }}
           >
-            <Table>
-              <TableHead>
-                <TableRow>
-                  {Object.keys(result[0]).map((key) => (
-                    <TableCell key={key}>{key}</TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {result.map((row, index) => (
-                  <TableRow key={index}>
-                    {Object.values(row).map((value, idx) => (
-                      <TableCell key={idx}>{String(value)}</TableCell>
+            Clear
+          </Button>
+          <Button variant="outlined" onClick={() => navigate("/")}>
+            Back
+          </Button>
+        </Box>
+
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+            >
+              <Alert severity="error" sx={{ mt: 3 }}>
+                {error + " - Please check the SQL syntax."}
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <Alert severity="success" sx={{ mt: 3 }}>
+                {success}
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {result.length > 0 && (
+          <Box mt={4}>
+            <Typography variant="subtitle1" gutterBottom>
+              Query Result
+            </Typography>
+            <Box
+              sx={{
+                maxHeight: 400,
+                overflowY: "auto",
+                overflowX: "auto",
+                border: "1px solid #ccc",
+                borderRadius: 1,
+              }}
+            >
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    {Object.keys(result[0]).map((key) => (
+                      <TableCell key={key}>{key}</TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {result.map((row, index) => (
+                    <TableRow key={index}>
+                      {Object.values(row).map((value, idx) => (
+                        <TableCell
+                          key={idx}
+                          sx={{
+                            maxWidth: 200,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {String(value)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
           </Box>
-        </Box>
-      )}
-      <Button
-        variant="outlined"
-        sx={{
-          ml: 2,
-          margin: "20px 4%",
-        }}
-        onClick={() => {
-          setQuery("");
-          setResult([]);
-          setError(null);
-          setSuccess(null);
-        }}
-      >
-        Clear
-      </Button>
-      <Button
-        variant="outlined"
-        sx={{
-          ml: 2,
-          display: "inline",
-          margin: "20px auto",
-        }}
-        onClick={() => {
-          navigate("/");
-        }}
-      >
-        Back
-      </Button>
-    </Box>
+        )}
+      </Box>
+    </motion.div>
   );
 };
 
 export default SqlQueryRunner;
-function loadDB(db: PGlite) {
-  throw new Error("Function not implemented.");
-}
-

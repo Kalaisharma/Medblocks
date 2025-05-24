@@ -12,7 +12,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { broadcastChange } from "../Hooks/syncChannels";
-import { PGlite } from "@electric-sql/pglite";
 
 const initialFormState: Omit<Patient, "id" | "createdAt"> = {
   name: "",
