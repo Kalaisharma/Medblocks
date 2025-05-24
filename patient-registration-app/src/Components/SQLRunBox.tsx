@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -13,41 +13,41 @@ import {
   Alert,
 } from "@mui/material";
 import db from "../Database/db";
+import { useNavigate } from "react-router-dom";
+import { broadcastChange, onBroadcast } from "../Hooks/syncChannels";
+import { PGlite } from "@electric-sql/pglite";
 
 const SqlQueryRunner: React.FC = () => {
   const [query, setQuery] = useState("select * from patients");
   const [result, setResult] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const handleRunQuery = async () => {
+  const runQuery = async (q: string) => {
     setError(null);
-      setResult([]);
-      setSuccess(null);
+    setResult([]);
+    setSuccess(null);
 
-      try {
-        const isAlter = /^alter\s/i.test(query.trim());
+    try {
+      const isAlter = /^alter\s/i.test(q.trim());
+      if (isAlter) {
+        setError("ALTER queries are not allowed to maintain schema integrity.");
+        return;
+      }
+      if (q.trim().length === 0) {
+        setError("Query cannot be empty");
+        return;
+      }
+      const res = await db.query(q);
+      console.log(res);
+      const isDDL = /^(create|drop|truncate)\s/i.test(q.trim());
 
-        if (isAlter) {
-          setError(
-            "ALTER queries are not allowed to maintain schema integrity."
-          );
-          return;
-        }
-        
-        if (query.trim().length === 0) {
-          setError("Query cannot be empty");
-          return;
-        }
-
-      const res = await db.query(query);
-        console.log(res);
-        const isDDL = /^(create|drop|truncate)\s/i.test(query.trim());
-
-if (isDDL) {
-  setSuccess("DDL query executed successfully");
-  return;
-}
+      if (isDDL) {
+        setSuccess("DDL query executed successfully");
+        broadcastChange()
+        return;
+      }
 
       if (res.affectedRows === 0 && res.rows.length === 0) {
         setError("No Data Found");
@@ -58,6 +58,7 @@ if (isDDL) {
         (res.affectedRows === undefined && res.rows.length === 0)
       ) {
         setSuccess("Query executed successfully");
+        broadcastChange();
         return;
       }
 
@@ -66,7 +67,22 @@ if (isDDL) {
       let msg = err.message || "Unknown error";
       setError(msg);
     }
-      
+  };
+
+  // Listen to broadcast channel on mount
+  useEffect(() => {
+    // Setup listener for patient updates
+    onBroadcast(async () => {
+      window.location.reload();
+    });
+
+    // Optionally, run query on mount for initial data load
+      runQuery(query);
+   }, []); // empty deps - run only once on mount
+
+  const handleRunQuery = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    runQuery(query);
   };
 
   return (
@@ -87,7 +103,7 @@ if (isDDL) {
         sx={{ mb: 2 }}
       />
 
-      <Button variant="contained" onClick={handleRunQuery}>
+      <Button variant="contained" onClick={(e) => { handleRunQuery(e) }}>
         Run Query
       </Button>
 
@@ -140,8 +156,7 @@ if (isDDL) {
         variant="outlined"
         sx={{
           ml: 2,
-          display: "block",
-          margin: "20px auto",
+          margin: "20px 4%",
         }}
         onClick={() => {
           setQuery("");
@@ -152,8 +167,25 @@ if (isDDL) {
       >
         Clear
       </Button>
+      <Button
+        variant="outlined"
+        sx={{
+          ml: 2,
+          display: "inline",
+          margin: "20px auto",
+        }}
+        onClick={() => {
+          navigate("/");
+        }}
+      >
+        Back
+      </Button>
     </Box>
   );
 };
 
 export default SqlQueryRunner;
+function loadDB(db: PGlite) {
+  throw new Error("Function not implemented.");
+}
+

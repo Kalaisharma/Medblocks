@@ -9,6 +9,10 @@ import {
   Typography,
   Paper,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import { broadcastChange } from "../Hooks/syncChannels";
+import { PGlite } from "@electric-sql/pglite";
 
 const initialFormState: Omit<Patient, "id" | "createdAt"> = {
   name: "",
@@ -23,10 +27,12 @@ const PatientForm: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState<Record<string, string>>({});
 //for safety
-  useEffect(() => {
-
-    initDB();
-  }, []);
+useEffect(() => {
+  (async () => {
+    await initDB();
+    console.log("Database initialized");
+  })();
+}, []);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -102,26 +108,38 @@ const PatientForm: React.FC = () => {
           '${new Date().toISOString()}'
         )
       `);
-
       setFormData(initialFormState);
-      alert("Patient registered successfully!");
+      
+      broadcastChange();
+      Swal.fire({
+        title: "Form Submitted Successfully",
+        text: "Data has been sent to patients table",
+        icon: "success",
+      });
     } catch (error) {
       console.log("DB error:", error);
       alert("Failed to register patient. Please try again.");
     }
   };
+  const navigate=useNavigate();
 
   return (
     <Box
       sx={{
-        height: "100vh",
+        height: "auto",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "#f5f5f5",
         p: 2,
       }}
     >
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ position: "absolute", top: 16, left: 16, zIndex: 1000 }}
+        onClick={() => navigate("/sqlrunner")}>
+        Click to SQLRunner
+      </Button>
       <Paper
         elevation={4}
         sx={{
@@ -152,6 +170,7 @@ const PatientForm: React.FC = () => {
             fullWidth
             required
             autoComplete={"disable-autofill"}
+            variant="outlined"
           />
           <TextField
             label="Age"
@@ -177,6 +196,7 @@ const PatientForm: React.FC = () => {
             fullWidth
             required
             autoComplete="off"
+            sx={{ textAlign: "left" }}
           >
             <MenuItem value="">Select Gender</MenuItem>
             <MenuItem value="Male">Male</MenuItem>
@@ -234,3 +254,5 @@ const PatientForm: React.FC = () => {
 };
 
 export default PatientForm;
+
+

@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
-
+//persistence is achieved by initializing the database with the appropriate dataDir prefix idb://
 const db = new PGlite('idb://patient-db');
 
 export const initDB = async () => {
