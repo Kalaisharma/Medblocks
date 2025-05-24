@@ -1,12 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import "./App.css";
 import PatientForm from "./Components/Patientform";
-import { initDB } from "./Database/db";
-import { useEffect } from "react";
 import SqlQueryRunner from "./Components/SQLRunBox";
 import Home from "./Components/Home";
-
-
 
 function App() {
  
